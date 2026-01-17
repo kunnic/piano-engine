@@ -1,65 +1,148 @@
+#if defined(_WIN32)
+#define NOGDICAPMASKS     // CC_*, LC_*, PC_*, CP_*, TC_*, RC_
+#define NOVIRTUALKEYCODES // VK_*
+#define NOWINMESSAGES     // WM_*, EM_*, LB_*, CB_*
+#define NOWINSTYLES       // WS_*, CS_*, ES_*, LBS_*, SBS_*, CBS_*
+#define NOSYSMETRICS      // SM_*
+#define NOMENUS           // MF_*
+#define NOICONS           // IDI_*
+#define NOKEYSTATES       // MK_*
+#define NOSYSCOMMANDS     // SC_*
+#define NORASTEROPS       // Binary and Tertiary raster ops
+#define NOSHOWWINDOW      // SW_*
+#define OEMRESOURCE       // OEM Resource values
+#define NOATOM            // Atom Manager routines
+#define NOCLIPBOARD       // Clipboard routines
+#define NOCOLOR           // Screen colors
+#define NOCTLMGR          // Control and Dialog routines
+#define NODRAWTEXT        // DrawText() and DT_*
+#define NOGDI             // All GDI defines and routines
+#define NOKERNEL          // All KERNEL defines and routines
+#define NOUSER            // All USER defines and routines
+//#define NONLS           // All NLS defines and routines
+#define NOMB              // MB_* and MessageBox()
+#define NOMEMMGR          // GMEM_*, LMEM_*, GHND, LHND, associated routines
+#define NOMETAFILE        // typedef METAFILEPICT
+#define NOMINMAX          // Macros min(a,b) and max(a,b)
+#define NOMSG             // typedef MSG and associated routines
+#define NOOPENFILE        // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
+#define NOSCROLL          // SB_* and scrolling routines
+#define NOSERVICE         // All Service Controller routines, SERVICE_ equates, etc.
+#define NOSOUND           // Sound driver routines
+#define NOTEXTMETRIC      // typedef TEXTMETRIC and associated routines
+#define NOWH              // SetWindowsHook and WH_*
+#define NOWINOFFSETS      // GWL_*, GCL_*, associated routines
+#define NOCOMM            // COMM driver routines
+#define NOKANJI           // Kanji support stuff.
+#define NOHELP            // Help engine interface.
+#define NOPROFILER        // Profiler interface.
+#define NODEFERWINDOWPOS  // DeferWindowPos routines
+#define NOMCX             // Modem Configuration Extensions
+
+typedef struct tagMSG *LPMSG;
+
+#include <windows.h>
+
+typedef struct tagBITMAPINFOHEADER {
+  DWORD biSize;
+  LONG  biWidth;
+  LONG  biHeight;
+  WORD  biPlanes;
+  WORD  biBitCount;
+  DWORD biCompression;
+  DWORD biSizeImage;
+  LONG  biXPelsPerMeter;
+  LONG  biYPelsPerMeter;
+  DWORD biClrUsed;
+  DWORD biClrImportant;
+} BITMAPINFOHEADER, *PBITMAPINFOHEADER;
+
+#include <objbase.h>
+#include <mmreg.h>
+#include <mmsystem.h>
+
+#if defined(_MSC_VER) || defined(__TINYC__)
+    #include "propidl.h"
+#endif
+#endif
+
+#undef PlaySound
+
 #include "raylib.h"
 #include <stdio.h>
+#include <string.h>
 
-char currentText[64] = "PRESS KEY"; 
+char infoBuffer[2048] = "Scanning..."; 
 Font font;
+
+// for scanning MIDI devices
+void ScanMidiDevicesToBuffer()
+{
+    infoBuffer[0] = '\0'; 
+    
+    unsigned int deviceCount = midiInGetNumDevs();
+
+    char tempLine[256];
+    sprintf(tempLine, "FOUND %d MIDI DEVICES:\n--------------------\n", deviceCount);
+    strcat(infoBuffer, tempLine);
+
+    for (unsigned int i = 0; i < deviceCount; i++) {
+        MIDIINCAPS caps;
+        if (midiInGetDevCaps(i, &caps, sizeof(MIDIINCAPS)) == MMSYSERR_NOERROR) {
+            sprintf(tempLine, "[ID %d]: %s\n", i, caps.szPname);
+            strcat(infoBuffer, tempLine);
+        }
+    }
+
+    if (deviceCount == 0) {
+        strcat(infoBuffer, "(No MIDI device found.)\n(Try plugging in USB & Press R)");
+    }
+}
 
 void PrintToScreen(const char* text)
 {
-    float fontSize = 100.0f;
+    float fontSize = 50.0f; 
     float spacing = 2.0f;
-
-    Vector2 text_size = MeasureTextEx(font, text, fontSize, spacing);
-    Vector2 position;
-
-    position.x = GetScreenWidth() / 10;
-    position.y = GetScreenHeight() / 10;
+    Vector2 position = { 50.0f, 50.0f };
 
     DrawTextEx(font, text, position, fontSize, spacing, BLACK);
 }
 
-// --- MAIN ---
 int main(void)
 {
+    SetTraceLogLevel(LOG_NONE);
+
     const int screenWidth = 1024;
     const int screenHeight = 768;
 
-    InitWindow(screenWidth, screenHeight, "My Chordie");
-    
+    InitWindow(screenWidth, screenHeight, "My Fake Chordie");
     SetTargetFPS(60);
 
-    font = LoadFontEx("fonts/cg.ttf", 120, 0, 0);
+    if (FileExists("fonts/cg.ttf")) {
+        font = LoadFontEx("fonts/cg.ttf", 100, 0, 0);
+        SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+    } else {
+        font = GetFontDefault();
+    }
 
-    SetTextureFilter(font.texture, TEXTURE_FILTER_BILINEAR);
+    ScanMidiDevicesToBuffer();
 
     while (!WindowShouldClose())
     {
-        int key = GetKeyPressed();
-
-        if (key != 0) 
-        {
-            if (key == 32) {
-                sprintf(currentText, "SPACE");
-            } 
-            else if (key >= 32 && key <= 126) {
-                sprintf(currentText, "%c", (char)key);
-            }
-            else {
-                sprintf(currentText, "KEY %d", key);
-            }
+        if (IsKeyPressed(KEY_R)) {
+            ScanMidiDevicesToBuffer();
         }
 
-        // --- RENDER ---
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        PrintToScreen(currentText);
+        PrintToScreen(infoBuffer);
+        DrawText("Press 'R' to Rescan", 50, 700, 20, GRAY);
 
         EndDrawing();
     }
 
-    UnloadFont(font);
-
+    if (font.texture.id != GetFontDefault().texture.id) UnloadFont(font);
     CloseWindow();
     return 0;
 }
