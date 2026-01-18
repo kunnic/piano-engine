@@ -145,8 +145,12 @@ int main(void) {
     int fps = 60;
 
     SetTraceLogLevel(LOG_NONE);
-    InitWindow(windowWidth, windowHeight, "Chordie: Hybrid Gravity Engine");
+    InitWindow(windowWidth, windowHeight, "Kunnic's Piano Engine");
     SetTargetFPS(fps);
+
+    Image icon = LoadImage("chordie.ico"); 
+    SetWindowIcon(icon);
+    UnloadImage(icon);
 
     midi_in_open(currentDeviceId);
     midi_out_open(currentOutputDeviceId);
